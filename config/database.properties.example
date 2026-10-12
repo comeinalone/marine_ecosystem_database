@@ -1,0 +1,6 @@
+# Copy to config/database.properties (ignored by Git), then set local values.
+# Environment variables MARINE_DB_URL, MARINE_DB_USER and MARINE_DB_PASSWORD
+# take precedence over these properties. Never commit the configured copy.
+db.url=jdbc:mysql://localhost:3306/Marine_Ecosystem_Database?connectTimeout=5000&socketTimeout=15000
+db.user=marine_app
+db.password=

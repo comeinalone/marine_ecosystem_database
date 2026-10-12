@@ -1,0 +1,17 @@
+/target/
+*.class
+*.log
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+.env
+.env.*
+!.env.example
+/config/database.properties
+*.local.properties
+*.sql.dump
+*.sql.gz
+.DS_Store

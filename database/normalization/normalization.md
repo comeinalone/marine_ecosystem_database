@@ -45,7 +45,7 @@ Under the FDs listed in the table, each determinant is a declared candidate key;
 
 ## 4. Important business-rule questions
 
-1. **Is `sampleID` unique only within its fish species?** If yes, keep `(speciesID, sampleID)`. If `sampleID` is globally unique, it may be a candidate key itself; reconsider the declared composite primary key and any partial dependencies.
+1. **Is `sampleID` unique only within its fish species?** Confirmed project requirement: yes. Keep `(speciesID, sampleID)`; sample IDs are not globally unique. The remaining FD assumptions still require the stated domain interpretation.
 2. **Can a DNA sample represent more than one species?** Current schema says no; if yes, a separate sample-to-species relationship may be needed.
 3. **Can one phone number have more than one contact type for a researcher?** Current schema allows it; verify that this matches the intended rules.
 4. **Are researcher specializations stored as one value or multiple per researcher?** Current schema allows only one scalar value per row. If multiple independently managed specializations are required, introduce a separate relation.
