@@ -1,6 +1,7 @@
 package com.marine.ui;
 
 import com.marine.dao.ResearchDao;
+import com.marine.search.*;
 import com.marine.model.*;
 import com.marine.model.RolePermissions.Operation;
 import javax.swing.*;
@@ -11,6 +12,7 @@ import java.util.function.Consumer;
 public final class DataQualityPanel extends ResearchPanel {
     private final ResearchDao dao;
     private final RoleContext roles;
+    private SampleKey selectedSample;
     private final Consumer<SampleKey> editSample;
     private final JComboBox<ResearchDao.IssueCategory> category = new JComboBox<>(ResearchDao.IssueCategory.values());
     private final JButton edit = new JButton("Open selected sample editor");
@@ -18,6 +20,9 @@ public final class DataQualityPanel extends ResearchPanel {
     public DataQualityPanel(ResearchDao dao, RoleContext roles, Consumer<SampleKey> editSample) {
         super(ResearchTool.QUALITY.toString(), "Review warnings manually. No automatic changes. Rules are documented in docs/research-tools.md.");
         this.dao = dao; this.roles = roles; this.editSample = editSample;
+        advanced(dao.search(), SearchDefinition.entity(EntityType.SAMPLE), roles, this::selectSearchResult);
+        JButton allSamples = new JButton("All samples"); controls.add(allSamples);
+        allSamples.addActionListener(event -> { selectedSample = null; refresh(); });
         controls.add(category); controls.add(edit); add(issues, BorderLayout.CENTER);
         category.addActionListener(event -> refresh());
         issues.table.getSelectionModel().addListSelectionListener(event -> stateChanged());
@@ -29,12 +34,14 @@ public final class DataQualityPanel extends ResearchPanel {
         });
         stateChanged();
     }
+    void selectSearchResult(SearchResult.Hit hit) { selectedSample = hit.sampleKey(); refresh(); }
     @Override protected void stateChanged() {
         edit.setEnabled(!busy && issues.selected() != null && roles.allows(EntityType.SAMPLE, Operation.UPDATE));
     }
     @Override public void refresh() {
         ResearchDao.IssueCategory selected = (ResearchDao.IssueCategory) category.getSelectedItem(); issues.clear();
-        load(() -> dao.quality(selected), data -> {
+        SampleKey key = selectedSample;
+        load(() -> dao.quality(selected, key), data -> {
             issues.showData(data); stateChanged();
             status.setText(data.rows().isEmpty() ? "No issues found for this category under the documented rules."
                     : data.rows().size() + " issues. Warnings can occur on valid records; constraint violations are separate.");

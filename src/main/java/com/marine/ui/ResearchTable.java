@@ -25,7 +25,7 @@ final class ResearchTable extends JPanel {
     ResearchTable(String title) {
         super(new BorderLayout(8, 8)); setOpaque(false);
         JPanel tools = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); tools.setOpaque(false);
-        tools.add(new JLabel(title)); tools.add(new JLabel("Filter"));
+        tools.add(new JLabel(title)); tools.add(new JLabel("Filter displayed analysis"));
         JTextField search = new JTextField(18); tools.add(search); add(tools, BorderLayout.NORTH);
         UiStyle.configure(table);
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
@@ -36,6 +36,22 @@ final class ResearchTable extends JPanel {
         add(new JScrollPane(table), BorderLayout.CENTER);
     }
     void showData(TableData next) { data = next; model.fireTableStructureChanged(); UiStyle.sizeColumns(table); }
+    boolean highlight(java.util.Map<String, Object> identity) {
+        @SuppressWarnings("unchecked") TableRowSorter<AbstractTableModel> sorter = (TableRowSorter<AbstractTableModel>) table.getRowSorter();
+        sorter.setRowFilter(null);
+        for (int i = 0; i < data.rows().size(); i++) {
+            final int row = i;
+            boolean match = identity.entrySet().stream().allMatch(entry -> {
+                int column = data.columns().indexOf(entry.getKey());
+                return column >= 0 && java.util.Objects.equals(data.rows().get(row).get(column), entry.getValue());
+            });
+            if (match) {
+                int view = table.convertRowIndexToView(i); table.setRowSelectionInterval(view, view);
+                table.scrollRectToVisible(table.getCellRect(view, 0, true)); return true;
+            }
+        }
+        return false;
+    }
     void clear() { showData(new TableData(List.of(), List.of())); }
     List<Object> selected() {
         int row = table.getSelectedRow();

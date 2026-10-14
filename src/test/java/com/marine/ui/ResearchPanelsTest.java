@@ -99,13 +99,17 @@ class ResearchPanelsTest {
             return null;
         });
     }
-    @Test void searchableSelectorRetainsRealKeysAndTreatsMetacharactersLiterally() throws Exception {
+    @Test void selectorRequiresAnExplicitChoiceForAmbiguousRecordsAndRetainsRealKeys() throws Exception {
         onEdt(() -> {
-            ResearchSelector selector = new ResearchSelector("Species");
-            selector.setChoices(List.of(new ResearchSelector.Choice(1, "1 — Shark [rare]"), new ResearchSelector.Choice(2, "2 — Tuna")));
-            JTextField search = components(selector, JTextField.class).get(0); search.setText("[rare]");
-            assertEquals(1, selector.key()); search.setText("TUNA"); assertEquals(2, selector.key());
-            search.setText("absent"); assertNull(selector.key()); search.setText(""); assertEquals(1, selector.key());
+            ResearchSelector selector = new ResearchSelector("Researcher");
+            selector.setChoices(List.of(new ResearchSelector.Choice(1, "1 — Sana Khan / Genetics"),
+                    new ResearchSelector.Choice(2, "2 — Sana Khan / Marine biology")));
+            assertNull(selector.key(), "An ambiguous name must never select the first record");
+            components(selector, JComboBox.class).get(0).setSelectedIndex(1);
+            assertEquals(2, selector.key());
+            selector.setChoices(List.of(new ResearchSelector.Choice(2, "2 — Sana Khan / Marine biology")));
+            assertEquals(2, selector.key());
+            selector.setChoices(List.of()); assertNull(selector.key());
             return null;
         });
     }

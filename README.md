@@ -9,7 +9,8 @@ A second-year DBMS mini-project for managing marine research with MySQL, Java JD
 - Sidebar dashboard: researcher, species, sample and endangered-species counts.
 - Current Role dropdown with Administrator, Researcher and Viewer dashboards and centralized UI permissions.
 - Add, edit, delete, sort and search fish species, researchers, vessels and sampling locations.
-- Researcher tabs for contact records, marine biologists and geneticists.
+- Researcher tabs for contact records, marine biologists and geneticists, with joined researcher names.
+- Unified MySQL Smart Search: optional AND filters, exact/partial normalized names, duplicate-name identities, ranges, autocomplete and paged advanced results across CRUD and all five tools.
 - DNA sample CRUD with labeled species/researcher/vessel/location selectors and the composite `(speciesID, sampleID)` key.
 - Four view-based reports plus read-only conservation-status audit history.
 - Research Tools: searchable conservation timeline, composite-key DNA traceability, recorded biodiversity exploration, data quality warnings and researcher contribution statistics with a bar chart.
@@ -156,7 +157,7 @@ mvn clean verify
 java -jar target/marine-ecosystem.jar --check-config
 ```
 
-`mvn clean verify` runs offline tests, skips the two opt-in live tests by default, and builds an executable JAR containing Connector/J. Tests cover the complete role/entity/operation matrix, role-change notifications, immediate CRUD restrictions, direct invocation of unauthorized handlers, dashboard refreshes and research query/UI contracts through JDBC test doubles. Frame/dropdown and dialog tests also run when a graphical display is available; they are skipped in headless environments. `--check-config` validates configuration and driver availability without connecting.
+`mvn clean verify` runs offline tests, skips the three opt-in live tests by default, and builds an executable JAR containing Connector/J. Tests cover the complete role/entity/operation matrix, role-change notifications, immediate CRUD restrictions, direct invocation of unauthorized handlers, dashboard refreshes and research query/UI contracts through JDBC test doubles. Frame/dropdown and dialog tests also run when a graphical display is available; they are skipped in headless environments. `--check-config` validates configuration and driver availability without connecting.
 
 After MySQL is initialized and credentials are configured:
 
@@ -167,7 +168,7 @@ java -jar target/marine-ecosystem.jar
 
 `--check-db` opens a real connection and prints the database server version on success. The normal launch needs a desktop display. A missing server produces a connection message; the application does not create a database or populate fake results.
 
-Create parent records before dependent records. For a researcher, first add the base researcher, then contacts/biologist/geneticist records in the related tabs. For a sample, create its species, researcher, vessel and location first. IDs are entered manually because the existing keys are not AUTO_INCREMENT. Editing preserves entity keys; edit contact records by changing their full three-column tuple. Search filters all loaded columns, and clicking a column header sorts the table.
+Create parent records before dependent records. For a researcher, first add the base researcher, then contacts/biologist/geneticist records in the related tabs. For a sample, create its species, researcher, vessel and location first. IDs are entered manually because the existing keys are not AUTO_INCREMENT. Editing preserves entity keys; edit contact records by changing their full three-column tuple. CRUD quick search queries MySQL by names/text/keys and pages results in groups of 100. Every CRUD tab and research tool provides **Advanced Search** with optional filters, exact/partial matching, ranges, SQL-backed name suggestions and paging. Duplicate names remain separate identified records; selection resolves the full database key. Clicking a column header sorts the current displayed page. See [Smart Search architecture, module fields, SQL safeguards, performance and manual steps](docs/smart-search.md).
 
 ## Testing and integration checklist
 
@@ -176,7 +177,7 @@ Create parent records before dependent records. For a researcher, first add the 
 3. Run the transaction demonstration separately; expected assertions are all 1.
 4. Configure roles/passwords and verify reader/manager privileges in separate sessions.
 5. Configure JDBC, then run `java -jar target/marine-ecosystem.jar --check-db`.
-6. Run `MARINE_RUN_DB_TESTS=true MARINE_TEST_DB_DISPOSABLE=true mvn test -Dtest=JdbcIntegrationTest,ResearchJdbcIntegrationTest` on the disposable database. It exercises real DAO CRUD, routines, reports, audit, research queries and rollback. Both opt-ins are required; configure JDBC to the disposable instance first.
+6. Run `MARINE_RUN_DB_TESTS=true MARINE_TEST_DB_DISPOSABLE=true mvn test -Dtest=JdbcIntegrationTest,ResearchJdbcIntegrationTest,SearchJdbcIntegrationTest` on the disposable database. It exercises real DAO CRUD, routines, reports, audit, research queries, Smart Search MySQL semantics and rollback. Both opt-ins are required; configure JDBC to the disposable instance first.
 7. Follow the [desktop acceptance checklist](docs/testing.md), record actual results, and capture screenshots for the [report](docs/report/mini-project-report.md).
 
 Original seed expectations: 4 researchers, 5 species, 6 DNA samples and 3 endangered/critically endangered species. These are expected values derived from seed SQL, not observed MySQL results.
@@ -223,7 +224,7 @@ docs/                           Status, acceptance checks, ER diagram and report
 ## Known limitations
 
 - All live SQL/JDBC/UI acceptance tests remain pending until MySQL is available. Panel construction and validation are tested offline; desktop appearance has not been manually reviewed.
-- The mini-project loads each module's rows into memory and filters locally; it has no pagination or optimistic concurrency control. Refresh after another user changes data.
+- CRUD/advanced searches are paged and SQL-backed. Analytical summaries/reports retain complete result lists, and literal contains/full-name normalization can require scans and filesorts. Count/page SELECTs may see concurrent changes; no optimistic concurrency control is added. Refresh after another user changes data.
 - Foreign keys intentionally block deletion of referenced parents. Audit history also blocks species deletion; the interface does not automatically erase history or cascade records.
 - Optional blank inputs become NULL. Email validation and rejection of future birth dates are additional UI rules; SQL remains the final authority.
 - Rollback restores audit rows but may leave AUTO_INCREMENT gaps. DCL/DDL demonstrations run outside application transactions.

@@ -1,6 +1,7 @@
 package com.marine.ui;
 
 import com.marine.model.*;
+import com.marine.search.*;
 import com.marine.model.RolePermissions.Operation;
 import javax.swing.*;
 import java.awt.*;
@@ -19,6 +20,8 @@ public final class EntityDialog extends JDialog {
     private final PropertyChangeListener roleListener;
     private final Map<Field, JComponent> inputs = new LinkedHashMap<>();
     private EntityRow result;
+    private final SearchService searchService;
+    private final java.util.List<SearchAutocomplete> autocomplete = new java.util.ArrayList<>();
 
     public EntityDialog(Window owner, EntityType type, EntityRow original,
                         Map<String, List<LookupChoice>> lookups) {
@@ -27,7 +30,13 @@ public final class EntityDialog extends JDialog {
 
     public EntityDialog(Window owner, EntityType type, EntityRow original,
                         Map<String, List<LookupChoice>> lookups, RoleContext roles) {
+        this(owner, type, original, lookups, roles, null);
+    }
+
+    public EntityDialog(Window owner, EntityType type, EntityRow original,
+                        Map<String, List<LookupChoice>> lookups, RoleContext roles, SearchService searchService) {
         super(owner, (original == null ? "Add " : "Edit ") + type.title(), ModalityType.APPLICATION_MODAL);
+        this.searchService = searchService;
         this.type = type;
         this.roles = roles;
         operation = original == null ? Operation.CREATE : Operation.UPDATE;
@@ -50,7 +59,24 @@ public final class EntityDialog extends JDialog {
             GridBagConstraints inputConstraints = new GridBagConstraints();
             inputConstraints.gridx = 1; inputConstraints.gridy = row++; inputConstraints.weightx = 1;
             inputConstraints.fill = GridBagConstraints.HORIZONTAL; inputConstraints.insets = new Insets(8, 0, 8, 0);
-            form.add(input, inputConstraints);
+            if (field.reference() != null && searchService != null) {
+                JPanel reference = new JPanel(new BorderLayout(4, 4)); reference.add(input, BorderLayout.CENTER);
+                JPanel picker = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+                JTextField query = new JTextField(12); query.setToolTipText("Type a name for suggestions; choose a specific ID.");
+                JButton find = new JButton("Advanced Search"); picker.add(query); picker.add(find);
+                JComboBox<?> combo = (JComboBox<?>) input;
+                java.util.function.Consumer<SearchResult.Hit> choose = hit -> {
+                    @SuppressWarnings("unchecked") JComboBox<LookupChoice> choices = (JComboBox<LookupChoice>) combo;
+                    int id = ((Number) hit.identity().values().iterator().next()).intValue();
+                    LookupChoice choice = new LookupChoice(id, hit.label());
+                    choices.addItem(choice); choices.setSelectedItem(choice);
+                };
+                SearchDefinition definition = SearchDefinition.entity(EntityType.valueOf(field.reference()));
+                autocomplete.add(new SearchAutocomplete(query, searchService, definition, roles, choose));
+                find.addActionListener(event -> AdvancedSearchDialog.choose(this, definition, searchService, roles).ifPresent(choose));
+                boolean enabled = input.isEnabled(); query.setEnabled(enabled); find.setEnabled(enabled);
+                reference.add(picker, BorderLayout.SOUTH); form.add(reference, inputConstraints);
+            } else form.add(input, inputConstraints);
         }
         content.add(new JScrollPane(form), BorderLayout.CENTER);
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -83,6 +109,10 @@ public final class EntityDialog extends JDialog {
                 for (int i = 0; i < combo.getItemCount(); i++) {
                     if (combo.getItemAt(i).id() == number.intValue()) combo.setSelectedIndex(i);
                 }
+                if (combo.getSelectedIndex() < 0) {
+                    LookupChoice existing = new LookupChoice(number.intValue(), "Current reference (use Advanced Search for details)");
+                    combo.addItem(existing); combo.setSelectedItem(existing);
+                }
             }
             combo.setToolTipText("Create the referenced record first if this list is empty.");
             return combo;
@@ -106,6 +136,7 @@ public final class EntityDialog extends JDialog {
         }
     }
     @Override public void dispose() {
+        autocomplete.forEach(SearchAutocomplete::close);
         roles.removeRoleListener(roleListener);
         super.dispose();
     }

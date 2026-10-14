@@ -1,6 +1,7 @@
 package com.marine.ui;
 
 import com.marine.dao.ResearchDao;
+import com.marine.search.*;
 import com.marine.model.*;
 import javax.swing.*;
 import java.awt.*;
@@ -11,13 +12,17 @@ public final class SampleTraceabilityPanel extends ResearchPanel {
     private final ResearchDao dao;
     private final ResearchSelector samples = new ResearchSelector("Sample (speciesID, sampleID)");
     private final JTextArea details = new JTextArea();
-    public SampleTraceabilityPanel(ResearchDao dao) {
-        super(ResearchTool.TRACEABILITY.toString(), "Stored collection context linked by foreign keys. Select both components of the sample identity.");
+    public SampleTraceabilityPanel(ResearchDao dao) { this(dao, new RoleContext()); }
+    public SampleTraceabilityPanel(ResearchDao dao, RoleContext roles) {
+        super(ResearchTool.TRACEABILITY.toString(), "Stored collection context linked by foreign keys. Find a sample by any known collection information; both key components are retained.");
         this.dao = dao; controls.add(samples);
+        samples.configure(dao.search(), SearchDefinition.entity(EntityType.SAMPLE), roles);
+        advanced(dao.search(), SearchDefinition.entity(EntityType.SAMPLE), roles, this::selectSearchResult);
         details.setEditable(false); details.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
         details.setMargin(new Insets(16, 16, 16, 16)); add(new JScrollPane(details), BorderLayout.CENTER);
         samples.onChange(this::loadSample);
     }
+    void selectSearchResult(SearchResult.Hit hit) { samples.select(hit); }
     @Override public void refresh() {
         details.setText("");
         load(dao::samples, data -> samples.setChoices(data.rows().stream().map(row -> {

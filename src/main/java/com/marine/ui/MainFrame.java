@@ -31,13 +31,13 @@ public final class MainFrame extends JFrame {
         panels.put("DNA Samples", new CrudPanel(EntityType.SAMPLE, entities, roles));
         panels.put("Research Vessels", new CrudPanel(EntityType.VESSEL, entities, roles));
         panels.put("Sampling Locations", new CrudPanel(EntityType.LOCATION, entities, roles));
-        panels.put("Reports", new ReportsPanel(reports));
+        panels.put("Reports", new ReportsPanel(reports, roles));
         ResearchDao research = new ResearchDao(database);
-        panels.put(ResearchTool.TIMELINE.toString(), new ConservationTimelinePanel(research));
-        panels.put(ResearchTool.TRACEABILITY.toString(), new SampleTraceabilityPanel(research));
-        panels.put(ResearchTool.BIODIVERSITY.toString(), new BiodiversityPanel(research));
+        panels.put(ResearchTool.TIMELINE.toString(), new ConservationTimelinePanel(research, roles));
+        panels.put(ResearchTool.TRACEABILITY.toString(), new SampleTraceabilityPanel(research, roles));
+        panels.put(ResearchTool.BIODIVERSITY.toString(), new BiodiversityPanel(research, roles));
         panels.put(ResearchTool.QUALITY.toString(), new DataQualityPanel(research, roles, this::editSample));
-        panels.put(ResearchTool.CONTRIBUTIONS.toString(), new ContributionPanel(research));
+        panels.put(ResearchTool.CONTRIBUTIONS.toString(), new ContributionPanel(research, roles));
         JPanel sidebar = new JPanel(); sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(UiStyle.NAVY); sidebar.setBorder(BorderFactory.createEmptyBorder(24, 16, 24, 16));
         sidebar.setPreferredSize(new Dimension(290, 780));

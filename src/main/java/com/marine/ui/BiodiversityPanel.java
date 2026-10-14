@@ -1,6 +1,7 @@
 package com.marine.ui;
 
 import com.marine.dao.ResearchDao;
+import com.marine.search.*;
 import com.marine.model.ResearchTool;
 import javax.swing.*;
 import java.awt.*;
@@ -11,13 +12,21 @@ public final class BiodiversityPanel extends ResearchPanel {
     private final JSpinner minimum = new JSpinner(new SpinnerNumberModel(1, 1, Integer.MAX_VALUE, 1));
     private final ResearchTable comparison = new ResearchTable("Compare all recorded regions: sample and distinct-species totals");
     private final ResearchTable species = new ResearchTable("Species represented in the selected region");
-    public BiodiversityPanel(ResearchDao dao) {
+    public BiodiversityPanel(ResearchDao dao) { this(dao, new RoleContext()); }
+    public BiodiversityPanel(ResearchDao dao, RoleContext roles) {
         super(ResearchTool.BIODIVERSITY.toString(), "Recorded sampling data; these counts are not estimates of actual ocean biodiversity.");
         this.dao = dao; controls.add(regions);
+        regions.configure(dao.search(), SearchDefinition.entity(com.marine.model.EntityType.LOCATION), roles);
+        advanced(dao.search(), SearchDefinition.entity(com.marine.model.EntityType.LOCATION), roles, this::selectSearchResult);
         JPanel threshold = new JPanel(new FlowLayout(FlowLayout.LEFT)); threshold.setOpaque(false);
         threshold.add(new JLabel("Minimum samples per species (HAVING)")); threshold.add(minimum); controls.add(threshold);
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, comparison, species); split.setResizeWeight(0.45);
         add(split, BorderLayout.CENTER); regions.onChange(this::loadSpecies); minimum.addChangeListener(event -> loadSpecies());
+    }
+    void selectSearchResult(SearchResult.Hit hit) {
+        load(dao::regions, data -> {
+            comparison.showData(data); comparison.highlight(hit.identity()); regions.select(hit);
+        });
     }
     @Override public void refresh() {
         comparison.clear(); species.clear();

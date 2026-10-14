@@ -1,6 +1,7 @@
 package com.marine.ui;
 
 import com.marine.dao.ResearchDao;
+import com.marine.search.*;
 import com.marine.model.*;
 import javax.swing.*;
 import java.awt.*;
@@ -13,9 +14,13 @@ public final class ContributionPanel extends ResearchPanel {
     private final ResearchTable samples = new ResearchTable("Selected researcher: recorded sample collections");
     private final SampleBars bars = new SampleBars();
     private boolean populating;
-    public ContributionPanel(ResearchDao dao) {
+    private Integer pendingResearcher;
+    public ContributionPanel(ResearchDao dao) { this(dao, new RoleContext()); }
+    public ContributionPanel(ResearchDao dao, RoleContext roles) {
         super(ResearchTool.CONTRIBUTIONS.toString(), "Participation in recorded collections. Sample count ranks do not measure productivity or scientific impact.");
-        this.dao = dao; controls.add(new JLabel("Sort by samples / species diversity / latest activity")); controls.add(sort);
+        this.dao = dao;
+        advanced(dao.search(), SearchDefinition.entity(EntityType.RESEARCHER), roles, this::selectSearchResult);
+        controls.add(new JLabel("Sort by samples / species diversity / latest activity")); controls.add(sort);
         JPanel summary = new JPanel(new BorderLayout(8, 8)); summary.setOpaque(false);
         summary.add(researchers, BorderLayout.CENTER); summary.add(new JScrollPane(bars), BorderLayout.EAST);
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, summary, samples); split.setResizeWeight(0.55);
@@ -24,11 +29,19 @@ public final class ContributionPanel extends ResearchPanel {
             if (!event.getValueIsAdjusting() && !populating) loadSamples();
         });
     }
+    void selectSearchResult(SearchResult.Hit hit) {
+        pendingResearcher = ((Number) hit.get("researcherID")).intValue(); refresh();
+    }
     @Override public void refresh() {
         ResearchDao.ContributionSort selected = (ResearchDao.ContributionSort) sort.getSelectedItem();
         populating = true; researchers.clear(); samples.clear(); bars.setData(new TableData(List.of(), List.of())); populating = false;
         load(() -> dao.contributions(selected), data -> {
             populating = true; researchers.showData(data); bars.setData(data); populating = false;
+            if (pendingResearcher != null) {
+                int id = pendingResearcher; pendingResearcher = null;
+                if (researchers.highlight(java.util.Map.of("researcherID", id))) return;
+                status.setText("Selected researcher no longer exists. Refresh and search again."); return;
+            }
             status.setText(data.rows().isEmpty() ? "No researchers recorded." : data.rows().size() + " researchers. Select a row to view collections.");
         });
     }

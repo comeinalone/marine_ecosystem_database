@@ -1,6 +1,7 @@
 package com.marine.ui;
 
 import javax.swing.*;
+import com.marine.search.*;
 import java.awt.*;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
@@ -36,6 +37,15 @@ abstract class ResearchPanel extends JPanel implements Refreshable {
             if (version == request) { busy = false; refreshButton.setEnabled(true); stateChanged(); }
         }, error -> {
             if (version == request) status.setText(Errors.message(error));
+        });
+    }
+
+    protected final void advanced(SearchService service, SearchDefinition definition, RoleContext roles,
+                                  Consumer<SearchResult.Hit> select) {
+        JButton button = new JButton("Advanced Search"); controls.add(button);
+        button.addActionListener(event -> AdvancedSearchDialog.choose(this, definition, service, roles).ifPresent(select));
+        roles.addRoleListener(event -> {
+            request++; busy = false; refreshButton.setEnabled(true); status.setText("Role changed. Refresh to load records."); stateChanged();
         });
     }
 

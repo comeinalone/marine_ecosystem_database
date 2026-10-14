@@ -1,6 +1,7 @@
 package com.marine.dao;
 
 import com.marine.db.ConnectionProvider;
+import com.marine.search.SearchService;
 import com.marine.model.SampleKey;
 import com.marine.model.TableData;
 import java.sql.*;
@@ -10,9 +11,10 @@ import java.util.*;
 public final class ResearchDao {
     private final ConnectionProvider connections;
     public ResearchDao(ConnectionProvider connections) { this.connections = connections; }
+    public SearchService search() { return new SearchService(connections); }
 
     public TableData species() throws SQLException {
-        return query("SELECT speciesID, common_name, scientific_name FROM Fish_Species ORDER BY common_name, speciesID");
+        return query("SELECT speciesID, common_name, scientific_name FROM Fish_Species ORDER BY common_name, speciesID LIMIT 100");
     }
 
     public TableData timeline(int speciesID, boolean newestFirst) throws SQLException {
@@ -29,7 +31,7 @@ public final class ResearchDao {
         return query("""
                 SELECT d.speciesID, d.sampleID, f.common_name, d.collection_date
                 FROM DNA_Sample d JOIN Fish_Species f ON f.speciesID = d.speciesID
-                ORDER BY d.speciesID, d.sampleID
+                ORDER BY d.speciesID, d.sampleID LIMIT 100
                 """);
     }
 
@@ -124,13 +126,21 @@ public final class ResearchDao {
                 UNION ALL SELECT speciesID, sampleID, common_name, collection_date, DNA_quality, 'CONSTRAINT', 'Constraint violation', constraint_issue FROM checked WHERE constraint_issue IS NOT NULL
                 UNION ALL SELECT speciesID, sampleID, common_name, collection_date, DNA_quality, 'CONSTRAINT', 'Constraint violation', reference_issue FROM checked WHERE reference_issue IS NOT NULL
             )
-            SELECT * FROM issues WHERE (? = 'ALL' OR category = ?)
+            SELECT speciesID, sampleID, common_name, collection_date, DNA_quality, category, severity, reason FROM issues WHERE (? = 'ALL' OR category = ?)
             ORDER BY speciesID, sampleID, category, reason
             """;
 
     public TableData quality(IssueCategory category) throws SQLException {
         Objects.requireNonNull(category);
         return query(QUALITY_SQL, category.name(), category.name());
+    }
+
+    public TableData quality(IssueCategory category, SampleKey key) throws SQLException {
+        if (key == null) return quality(category);
+        Objects.requireNonNull(category);
+        String sql = QUALITY_SQL.replace("WHERE (? = 'ALL' OR category = ?)",
+                "WHERE (? = 'ALL' OR category = ?) AND speciesID = ? AND sampleID = ?");
+        return query(sql, category.name(), category.name(), key.speciesID(), key.sampleID());
     }
 
     public enum ContributionSort { SAMPLES, SPECIES, ACTIVITY }
@@ -151,7 +161,7 @@ public final class ResearchDao {
                     FROM Researcher r LEFT JOIN DNA_Sample d ON d.researcherID = r.researcherID
                     GROUP BY r.researcherID, r.first_name, r.middle_name, r.last_name, r.researcher_specialization
                 )
-                SELECT *, DENSE_RANK() OVER (ORDER BY sample_count DESC) AS sample_count_rank
+                SELECT researcherID, researcher, researcher_specialization, sample_count, distinct_species, distinct_regions, first_collection, most_recent_collection, DENSE_RANK() OVER (ORDER BY sample_count DESC) AS sample_count_rank
                 FROM participation ORDER BY %s, researcherID
                 """.formatted(order));
     }

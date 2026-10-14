@@ -1,6 +1,7 @@
 package com.marine.dao;
 
 import com.marine.db.ConnectionProvider;
+import com.marine.search.SearchService;
 import com.marine.model.TableData;
 import java.sql.*;
 import java.util.*;
@@ -18,6 +19,7 @@ public final class ReportDao {
     }
     private final ConnectionProvider connections;
     public ReportDao(ConnectionProvider connections) { this.connections = connections; }
+    public SearchService search() { return new SearchService(connections); }
 
     public TableData report(Report report) throws SQLException {
         return query("SELECT * FROM `" + report.table + "` ORDER BY `" + report.order + "`");

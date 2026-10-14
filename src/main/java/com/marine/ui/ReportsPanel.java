@@ -2,6 +2,8 @@ package com.marine.ui;
 
 import com.marine.dao.ReportDao;
 import com.marine.model.TableData;
+import com.marine.search.*;
+import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
@@ -18,13 +20,25 @@ public final class ReportsPanel extends JPanel implements Refreshable {
     private final JTable table = new JTable(model);
     private boolean busy;
 
-    public ReportsPanel(ReportDao dao) {
+    public ReportsPanel(ReportDao dao) { this(dao, new RoleContext()); }
+    public ReportsPanel(ReportDao dao, RoleContext roles) {
         super(new BorderLayout(12, 14)); this.dao = dao;
         setBorder(UiStyle.padding()); setBackground(UiStyle.BACKGROUND);
         JPanel top = new JPanel(new BorderLayout(12, 12)); top.setOpaque(false);
         top.add(UiStyle.heading("Research Reports"), BorderLayout.NORTH);
         JPanel tools = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); tools.setOpaque(false);
-        tools.add(report); tools.add(refresh); tools.add(new JLabel("Search"));
+        JButton advanced = new JButton("Advanced Search");
+        tools.add(report); tools.add(refresh); tools.add(advanced); tools.add(new JLabel("Filter displayed report"));
+        advanced.addActionListener(event -> {
+            if (busy || report.getSelectedItem() != ReportDao.Report.AUDIT) return;
+            AdvancedSearchDialog.choose(this, SearchDefinition.audit(), dao.search(), roles).ifPresent(hit -> {
+                List<String> columns = hit.definition().fields().stream().map(SearchField::name).toList();
+                show(new TableData(columns, List.of(columns.stream().map(hit::get).toList())));
+                table.setRowSelectionInterval(0, 0);
+            });
+        });
+        advanced.setEnabled(false);
+        report.addActionListener(event -> advanced.setEnabled(report.getSelectedItem() == ReportDao.Report.AUDIT));
         JTextField search = new JTextField(20); tools.add(search); top.add(tools, BorderLayout.SOUTH); add(top, BorderLayout.NORTH);
         UiStyle.configure(table);
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model); table.setRowSorter(sorter); TableFilter.attach(search, sorter);
