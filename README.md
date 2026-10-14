@@ -2,15 +2,17 @@
 
 A second-year DBMS mini-project for managing marine research with MySQL, Java JDBC and a Swing desktop application. The existing nine-table relational design connects researchers, contacts, biologists, geneticists, vessels, sampling regions, fish species, DNA samples and conservation-status history.
 
-**Verification:** Java compilation, offline tests and packaging are verified. MySQL Server is not installed in the development environment; SQL execution, live JDBC behavior and connected desktop workflows remain unverified. See [implementation status](docs/implementation-status.md).
+**Verification:** `mvn clean verify` passed with 135 tests: 133 passed and 2 live MySQL tests skipped. Configuration/driver checks passed; `--check-db` could not connect and no local MySQL executable was found. SQL execution, live JDBC behavior and connected desktop workflows remain unverified. See [implementation status](docs/implementation-status.md).
 
 ## Features
 
 - Sidebar dashboard: researcher, species, sample and endangered-species counts.
+- Current Role dropdown with Administrator, Researcher and Viewer dashboards and centralized UI permissions.
 - Add, edit, delete, sort and search fish species, researchers, vessels and sampling locations.
 - Researcher tabs for contact records, marine biologists and geneticists.
 - DNA sample CRUD with labeled species/researcher/vessel/location selectors and the composite `(speciesID, sampleID)` key.
 - Four view-based reports plus read-only conservation-status audit history.
+- Research Tools: searchable conservation timeline, composite-key DNA traceability, recorded biodiversity exploration, data quality warnings and researcher contribution statistics with a bar chart.
 - Required-field, length, integer, date, email, status and quality validation; deletion confirmation and database-error explanations.
 - Background `SwingWorker` database operations, JDBC resource cleanup and parameterized SQL.
 - Stored procedures, reusable counting functions, automatic audit trigger, transaction demonstrations, DCL roles and SQL tests.
@@ -91,7 +93,23 @@ ALTER USER 'marine_reader'@'localhost' IDENTIFIED BY '<different-password>' ACCO
 SHOW GRANTS FOR 'marine_app'@'localhost' USING 'marine_manager';
 ```
 
-`marine_readonly` can read tables/views and execute the reporting procedure/count functions. `marine_manager` can manage records and database objects within this database; it cannot create users or grant privileges to others. The desktop is intended to run as `marine_app`. A read-only user can open reports, but attempted writes will be rejected by MySQL. There is no separate application login or role-based button hiding.
+`marine_readonly` can read tables/views and execute the reporting procedure/count functions. `marine_manager` can manage records and database objects within this database; it cannot create users or grant privileges to others. The desktop is intended to run as `marine_app`. A read-only MySQL account can open reports, but attempted writes will be rejected by MySQL regardless of the role selected in the interface. There is no separate application login.
+
+## Dashboard roles
+
+Use **Current Role** in the top-right corner to switch roles. Each launch defaults to **Administrator**.
+
+| Role | Access | Add, edit and delete |
+| --- | --- | --- |
+| Administrator | All modules, researcher contact/specialization tabs, reports and conservation-status history | All existing editable entities |
+| Researcher | All modules and research reports; dashboard emphasizes DNA samples and species | DNA samples only; species, researcher profiles/contacts/specializations, vessels and locations are read-only |
+| Viewer | All modules and reports; dashboard emphasizes species and conservation statistics | None; all records are read-only |
+
+Switching immediately updates the dashboard heading, statistic ordering, shortcuts, navigation permissions and CRUD controls, including all researcher tabs. The four statistics continue to load real counts through `ReportDao` from MySQL; no sample counts are substituted. The dashboard refreshes even when another module is open. If a statistics request is already running, a fresh request follows it. The current page stays open while accessible; navigation falls back to Dashboard if a page is inaccessible under the new role. All current modules allow viewing for all three roles, so switching between them preserves the open page.
+
+`UserRole` and `RolePermissions` define the permission matrix centrally. A shared, in-memory `RoleContext` informs panels and dialogs of changes. Restricted CRUD buttons are disabled, and action handlers, dialog saves and queued writes recheck permissions. Changing roles closes open record editors and invalidates pending editor results/requests; canceling an editor does not write records. A database write that has already started may finish; role switching itself only refreshes data and never modifies database records. Existing validation, foreign-key handling, reports and read-only conservation-status audit history are preserved.
+
+**This is a UI-level role simulation, not authentication or a database security boundary. Actual database security is controlled by MySQL permissions for the configured JDBC account.** Anyone using the dropdown can select Administrator. Role choices are not stored in MySQL, do not change the configured credentials or database account, and reset when the application restarts. No tables, entity definitions, keys or ER diagram were changed for this feature.
 
 Accounts target a locally installed server. For remote/container deployments, a DBA must provision accounts with an appropriate client host and configure transport security. Existing account grants are not reset by the example script.
 
@@ -123,17 +141,22 @@ export MARINE_DB_PASSWORD
 
 The program does not automatically load `.env`. The default URL uses finite connection/read timeouts; retain suitable timeouts if overriding it. No insecure authentication or TLS overrides are enabled by the application.
 
+## Research tools
+
+All three interface roles can open the five tools in **Research Tools** or through dashboard shortcuts. The timeline reads existing trigger history; traceability joins the sample's species, researcher, vessel and location; biodiversity compares recorded region totals and species counts; the quality checker lists documented warnings and constraint violations; researcher contributions include zero-sample researchers and sample-count ranks. Administrator and Researcher can open a flagged sample in the existing editor; Viewer remains read-only.
+
+Biodiversity counts describe recorded sampling, and researcher ranks do not measure scientific productivity or impact. Quality checks use the schema's `Low` value and NULL metadata, future/pre-birth collection dates and blank markers, without invented scientific thresholds. No history, stages or custody events are fabricated. No schema changes or new dependencies are required. Tools run in background workers and use SELECT privileges on the existing linked tables and audit table. See [research tools, SQL examples, quality rules and file inventory](docs/research-tools.md).
+
 ## Build and launch
 
 Compilation and offline tests do not need MySQL:
 
 ```bash
-mvn clean compile
-mvn verify
+mvn clean verify
 java -jar target/marine-ecosystem.jar --check-config
 ```
 
-`mvn verify` runs offline tests, skips the opt-in live test by default, and builds an executable JAR containing Connector/J. `--check-config` validates configuration and driver availability without connecting.
+`mvn clean verify` runs offline tests, skips the two opt-in live tests by default, and builds an executable JAR containing Connector/J. Tests cover the complete role/entity/operation matrix, role-change notifications, immediate CRUD restrictions, direct invocation of unauthorized handlers, dashboard refreshes and research query/UI contracts through JDBC test doubles. Frame/dropdown and dialog tests also run when a graphical display is available; they are skipped in headless environments. `--check-config` validates configuration and driver availability without connecting.
 
 After MySQL is initialized and credentials are configured:
 
@@ -153,7 +176,7 @@ Create parent records before dependent records. For a researcher, first add the 
 3. Run the transaction demonstration separately; expected assertions are all 1.
 4. Configure roles/passwords and verify reader/manager privileges in separate sessions.
 5. Configure JDBC, then run `java -jar target/marine-ecosystem.jar --check-db`.
-6. Run `MARINE_RUN_DB_TESTS=true mvn test -Dtest=JdbcIntegrationTest` on the disposable database. It exercises real DAO CRUD, routines, reports, audit and rollback.
+6. Run `MARINE_RUN_DB_TESTS=true MARINE_TEST_DB_DISPOSABLE=true mvn test -Dtest=JdbcIntegrationTest,ResearchJdbcIntegrationTest` on the disposable database. It exercises real DAO CRUD, routines, reports, audit, research queries and rollback. Both opt-ins are required; configure JDBC to the disposable instance first.
 7. Follow the [desktop acceptance checklist](docs/testing.md), record actual results, and capture screenshots for the [report](docs/report/mini-project-report.md).
 
 Original seed expectations: 4 researchers, 5 species, 6 DNA samples and 3 endangered/critically endangered species. These are expected values derived from seed SQL, not observed MySQL results.

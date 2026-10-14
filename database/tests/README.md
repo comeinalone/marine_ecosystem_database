@@ -49,9 +49,9 @@ Run its commented denial cases one by one, then repeat with `marine_app`. Always
 Enable the JDBC test only after initialization and local configuration:
 
 ```bash
-MARINE_RUN_DB_TESTS=true mvn test -Dtest=JdbcIntegrationTest
+MARINE_RUN_DB_TESTS=true MARINE_TEST_DB_DISPOSABLE=true mvn test -Dtest=JdbcIntegrationTest,ResearchJdbcIntegrationTest
 ```
 
-It uses fixture ID `920001`, calls real JDBC APIs and rolls back data in `finally`. It requires seed references `1`, `101`, `201`, the existing `(301,1)` sample, and an unused fixture ID/scientific name. It does not initialize or erase a database. Leave the variable unset for offline builds.
+Both environment opt-ins are required. Configure JDBC to a disposable instance before enabling them. `JdbcIntegrationTest` uses fixture ID `920001`, calls real JDBC APIs and rolls back data in `finally`. It requires seed references `1`, `101`, `201`, the existing `(301,1)` sample, and an unused fixture ID/scientific name. `ResearchJdbcIntegrationTest` creates fixture parents using IDs `930001`/`930002` and verifies actual audit, traceability, biodiversity, quality and contribution queries before rollback. Neither test initializes or erases a database. Leave the opt-in variables unset for offline builds. See [research test details](../../docs/research-tools.md).
 
 Record the MySQL version, SQL mode, command, timestamp, output and screenshots when executing. Update the Actual column only after observing results.

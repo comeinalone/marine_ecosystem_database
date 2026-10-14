@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Opt-in ONLY: requires an initialized disposable database and write privileges. */
 @EnabledIfEnvironmentVariable(named = "MARINE_RUN_DB_TESTS", matches = "true")
+@EnabledIfEnvironmentVariable(named = "MARINE_TEST_DB_DISPOSABLE", matches = "true")
 class JdbcIntegrationTest {
     @Test void realJdbcCrudRoutinesReportsAndAuditRollBackTogether() throws Exception {
         try (Connection connection = new Database(DatabaseConfig.load()).open()) {

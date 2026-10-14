@@ -5,6 +5,14 @@ Actual result for every case below: **not run against MySQL**. Use an initialize
 | Case | Action | Expected result |
 | --- | --- | --- |
 | Startup | Launch with initialized database and manager account | Dashboard shows original seed counts 4 / 5 / 6 / 3 |
+| Role default | Launch application | Current Role is Administrator; full CRUD controls and Administrator Dashboard |
+| Researcher role | Select Researcher with a row selected; visit all modules and researcher tabs | Heading/shortcuts update immediately; only DNA samples allow add/edit/delete; all modules can be viewed |
+| Viewer role | Select Viewer and visit all modules | Viewer Dashboard; all CRUD disabled; search, sort, refresh and reports remain available |
+| Role restoration | Switch from Viewer back to Administrator | CRUD controls restored, with edit/delete requiring a selected row |
+| Role refresh | Change role on a module or while statistics load | Current accessible page retained; fresh MySQL dashboard counts loaded, including after an in-flight request |
+| Pending editor | Switch role programmatically while a form/reference lookup or delete confirmation is pending | Stale form/confirmation cannot submit a write; editor closes on role changes |
+| Reports by role | View all four reports and conservation-status audit history as each role | Reports and history remain read-only and accessible |
+| Switch does not write | Switch roles without submitting edits and compare database records/audit counts | Database records and audit history unchanged; JDBC account unchanged |
 | Missing server | Stop MySQL or configure an unreachable port | Clear connection error; UI remains responsive; Refresh retries |
 | Species CRUD | Add unused ID, edit its name/status, search, delete before status change | Added/edited rows displayed; unreferenced species can be deleted |
 | Conservation audit | Change a fixture status, repeat same status, change to blank | Real transitions create audit rows; unchanged status does not |
@@ -25,7 +33,17 @@ Actual result for every case below: **not run against MySQL**. Use an initialize
 | Read-only account | Launch as reader; read reports then attempt mutation | Reads succeed; database denies writes with clear message |
 | Background work | Refresh a large table / simulate slow network | Window stays interactive; duplicate actions disabled while loading |
 | Resize | Resize window and dialogs; scroll wide tables | Content remains accessible; tables scroll horizontally/vertically |
+| Research tools by role | Open every tool as Administrator, Researcher and Viewer | All tools accessible and read-only; only Admin/Researcher can open flagged sample editor |
+| Timeline | Search species, change fixture status in CRUD, return to timeline; toggle newest first | Actual audit rows and count refresh; no-change update adds none; empty history explained |
+| Traceability | Choose two samples sharing sampleID across different species; use NULL quality | Correct composite identities and linked sections; absent optional values shown as not recorded |
+| Biodiversity | Compare regions, including empty region; sample same species twice; set minimum count | Totals count samples, species/endangered totals remain distinct; HAVING filters list only |
+| Quality checker | Review Low/NULL quality, future and pre-birth dates, blank marker; filter each category | Independent documented reasons; valid-record warnings distinct from constraint violations; no automatic writes |
+| Flagged sample editor | Select issue, open editor as Researcher; revoke role while lookup loads | Correct composite-key sample editor; Viewer and revoked pending requests cannot edit |
+| Contributions | Include researcher with zero samples; sort counts/diversity/latest date; select a row | Zero researcher retained; accurate distinct counts/dates/rank/chart and relevant collections |
+| Stale results | Change species/order/filter during a slow research query | Earlier completion never overwrites the current selection; errors are inline and Refresh retries |
 
-`mvn verify` exercises validation, configuration precedence, parameter binding, composite predicates, resource cleanup and panel construction without a database. The optional `JdbcIntegrationTest` uses a real database transaction and rolls it back. SQL scripts separately test MySQL constraints, routines, auditing, views and transaction behavior. Manual desktop checks are still needed; compiling Swing does not verify its visual layout.
+`mvn clean verify` exercises validation, configuration precedence, parameter binding, composite predicates, resource cleanup, panel construction, the full permission matrix, role transitions, guarded action handlers and asynchronous dashboard refreshes without a database. Display-dependent tests exercise the dropdown and dialog revocation when a graphical session is available. The optional `JdbcIntegrationTest` uses a real database transaction and rolls it back. SQL scripts separately test MySQL constraints, routines, auditing, views and transaction behavior. Manual desktop checks are still needed; automated Swing tests do not verify its visual layout.
 
 Screenshots to capture after execution: dashboard, species editor, researcher tabs, sample reference selectors, four reports, audit rows, SQL integrity-test PASS, privilege rejection and a foreign-key error. Save them under `docs/screenshots/` with descriptive filenames and reference them from the report. Avoid passwords, local configuration contents or connection strings containing credentials in screenshots.
+
+Research tools also have offline JDBC/Swing tests for composite-key binding, NULL rendering, every tool under every role, selector search, empty results, inline failures/retry and stale-query suppression. These test doubles are not evidence of MySQL execution. Both `JdbcIntegrationTest` and `ResearchJdbcIntegrationTest` require `MARINE_RUN_DB_TESTS=true` **and** `MARINE_TEST_DB_DISPOSABLE=true`; configure the existing JDBC settings to an initialized disposable database first. See [research rules, SQL and integration coverage](research-tools.md). Capture each research tool after real database execution.

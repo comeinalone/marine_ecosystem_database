@@ -16,6 +16,12 @@ class SwingPanelsTest {
             assertNotNull(new ResearchersPanel(dao));
             assertNotNull(new ReportsPanel(new ReportDao(unavailable)));
             assertNotNull(new DashboardPanel(new ReportDao(unavailable), page -> { }));
+            ResearchDao research = new ResearchDao(unavailable);
+            assertNotNull(new ConservationTimelinePanel(research));
+            assertNotNull(new SampleTraceabilityPanel(research));
+            assertNotNull(new BiodiversityPanel(research));
+            assertNotNull(new DataQualityPanel(research, new RoleContext(), key -> { }));
+            assertNotNull(new ContributionPanel(research));
         });
     }
 }

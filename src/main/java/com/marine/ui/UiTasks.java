@@ -10,6 +10,12 @@ import java.util.function.Consumer;
 public final class UiTasks {
     private UiTasks() { }
     public static <T> void run(Component parent, Callable<T> work, Consumer<T> success, Runnable finished) {
+        run(parent, work, success, finished, error ->
+                JOptionPane.showMessageDialog(parent, Errors.message(error), "Operation failed", JOptionPane.ERROR_MESSAGE));
+    }
+
+    public static <T> void run(Component parent, Callable<T> work, Consumer<T> success, Runnable finished,
+                               Consumer<Throwable> failure) {
         new SwingWorker<T, Void>() {
             @Override protected T doInBackground() throws Exception { return work.call(); }
             @Override protected void done() {
@@ -22,7 +28,7 @@ public final class UiTasks {
                     return;
                 } catch (ExecutionException ex) {
                     finished.run();
-                    JOptionPane.showMessageDialog(parent, Errors.message(ex.getCause()), "Operation failed", JOptionPane.ERROR_MESSAGE);
+                    failure.accept(ex.getCause());
                     return;
                 }
                 // Release loading controls before a success callback opens a

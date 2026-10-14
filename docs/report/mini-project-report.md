@@ -8,6 +8,8 @@ This mini-project models marine research using a nine-table MySQL relational dat
 
 Maintain structured research records, prevent orphaned samples, report research activity and track conservation-status changes. The application supports CRUD for all eight operational entities and read-only status history. The project uses Java 17, Maven, JDBC/Connector-J and standard Swing components; it does not include a web service or external UI framework.
 
+The research tools upgrade adds an educational Administrator/Researcher/Viewer interface switcher and five tools: conservation timeline, joined sample traceability, recorded biodiversity, documented data quality warnings and researcher participation statistics. They demonstrate temporal audit queries, composite keys, conditional/distinct aggregation, HAVING, CTEs and window ranks using the unchanged database. Roles simulate UI access only; MySQL privileges remain the actual security boundary. [Research tools](../research-tools.md) documents SQL, interpretation limits and verification gaps. Live research results and screenshots remain pending.
+
 ## Database design
 
 See the [ER diagram](../diagrams/erd.md) and [schema](../../database/schema/01_create_tables.sql). `Researcher` has contact rows and optional `Marine_Biologist`/`Geneticist` subtype rows. Each `DNA_Sample` references one researcher, vessel, location and species. `(speciesID, sampleID)` is the sample key because sample numbering is local to a species. `Species_Status_Audit` stores status transitions with an AUTO_INCREMENT key and timestamp.

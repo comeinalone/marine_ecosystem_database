@@ -1,8 +1,10 @@
 package com.marine.ui;
 
 import com.marine.model.*;
+import com.marine.model.RolePermissions.Operation;
 import javax.swing.*;
 import java.awt.*;
+import java.beans.PropertyChangeListener;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,13 +13,25 @@ import java.util.Optional;
 /** Form creation/validation only. Reference data is loaded before opening it. */
 public final class EntityDialog extends JDialog {
     private final EntityType type;
+    private final RoleContext roles;
+    private final Operation operation;
+    private final long revision;
+    private final PropertyChangeListener roleListener;
     private final Map<Field, JComponent> inputs = new LinkedHashMap<>();
     private EntityRow result;
 
     public EntityDialog(Window owner, EntityType type, EntityRow original,
                         Map<String, List<LookupChoice>> lookups) {
+        this(owner, type, original, lookups, new RoleContext());
+    }
+
+    public EntityDialog(Window owner, EntityType type, EntityRow original,
+                        Map<String, List<LookupChoice>> lookups, RoleContext roles) {
         super(owner, (original == null ? "Add " : "Edit ") + type.title(), ModalityType.APPLICATION_MODAL);
         this.type = type;
+        this.roles = roles;
+        operation = original == null ? Operation.CREATE : Operation.UPDATE;
+        revision = roles.revision();
         JPanel content = new JPanel(new BorderLayout(12, 12));
         content.setBorder(UiStyle.padding());
         content.add(new JLabel("* Required. Blank optional fields are stored as NULL."), BorderLayout.NORTH);
@@ -42,6 +56,9 @@ public final class EntityDialog extends JDialog {
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton cancel = new JButton("Cancel"); cancel.addActionListener(event -> dispose());
         JButton save = new JButton("Save"); save.addActionListener(event -> save());
+        save.setEnabled(roles.allows(type, operation));
+        roleListener = event -> { result = null; dispose(); };
+        roles.addRoleListener(roleListener);
         buttons.add(cancel); buttons.add(save); content.add(buttons, BorderLayout.SOUTH);
         setContentPane(content); getRootPane().setDefaultButton(save);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -74,6 +91,7 @@ public final class EntityDialog extends JDialog {
     }
 
     private void save() {
+        if (revision != roles.revision() || !roles.allows(type, operation)) return;
         try {
             Map<String, Object> values = new LinkedHashMap<>();
             for (Map.Entry<Field, JComponent> entry : inputs.entrySet()) {
@@ -87,5 +105,12 @@ public final class EntityDialog extends JDialog {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Check your input", JOptionPane.WARNING_MESSAGE);
         }
     }
-    public Optional<EntityRow> result() { return Optional.ofNullable(result); }
+    @Override public void dispose() {
+        roles.removeRoleListener(roleListener);
+        super.dispose();
+    }
+    public Optional<EntityRow> result() {
+        return revision == roles.revision() && roles.allows(type, operation)
+                ? Optional.ofNullable(result) : Optional.empty();
+    }
 }

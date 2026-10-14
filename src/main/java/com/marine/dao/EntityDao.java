@@ -40,6 +40,23 @@ public final class EntityDao {
         return choices;
     }
 
+    public Optional<EntityRow> sample(SampleKey key) throws SQLException {
+        EntityType type = EntityType.SAMPLE;
+        String sql = "SELECT " + SqlStatements.names(type.fields()) + " FROM `DNA_Sample` WHERE " + SqlStatements.predicate(type);
+        try (Connection connection = connections.open(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, key.speciesID()); statement.setObject(2, key.sampleID());
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) return Optional.empty();
+                Map<String, Object> values = new LinkedHashMap<>();
+                for (Field field : type.fields()) {
+                    Object value = result.getObject(field.name());
+                    values.put(field.name(), value instanceof java.sql.Date date ? date.toLocalDate() : value);
+                }
+                return Optional.of(new EntityRow(type, values));
+            }
+        }
+    }
+
     public void insert(EntityRow row) throws SQLException {
         execute(SqlStatements.insert(row.type()), row.type().fields(), row, List.of(), null);
     }
